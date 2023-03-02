@@ -1,12 +1,4 @@
-/*
- *  Copyright (C) 2021 mod.io Pty Ltd. <https://mod.io>
- *
- *  This file is part of the mod.io UE4 Plugin.
- *
- *  Distributed under the MIT License. (See accompanying file LICENSE or
- *   view online at <https://github.com/modio/modio-ue4/blob/main/LICENSE>)
- *
- */
+// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
@@ -26,29 +18,26 @@ class MODIO_API UModioEditModLibrary : public UBlueprintFunctionLibrary
 	GENERATED_BODY()
 
 	UFUNCTION(BlueprintCallable, Category = "mod.io|Edit Mod Params")
-	static void SetName(UPARAM(ref) FModioEditModParams& In, FString Name);
+	void SetName(UPARAM(ref) FModioEditModParams& In, FString Name);
 
 	UFUNCTION(BlueprintCallable, Category = "mod.io|Edit Mod Params")
-	static void SetSummary(UPARAM(ref) FModioEditModParams& In, FString Summary);
+	void SetSummary(UPARAM(ref) FModioEditModParams& In, FString Summary);
 
 	UFUNCTION(BlueprintCallable, Category = "mod.io|Edit Mod Params")
-	static void SetNamePath(UPARAM(ref) FModioEditModParams& In, FString NamePath);
+	void SetNamePath(UPARAM(ref) FModioEditModParams& In, FString NamePath);
 
 	UFUNCTION(BlueprintCallable, Category = "mod.io|Edit Mod Params")
-	static void SetVisibility(UPARAM(ref) FModioEditModParams& In, bool Visibility);
+	void SetVisibility(UPARAM(ref) FModioEditModParams& In, bool Visibility);
 
 	UFUNCTION(BlueprintCallable, Category = "mod.io|Edit Mod Params")
-	static void SetDescription(UPARAM(ref) FModioEditModParams& In, FString Description);
+	void SetDescription(UPARAM(ref) FModioEditModParams& In, FString Description);
 
 	UFUNCTION(BlueprintCallable, Category = "mod.io|Edit Mod Params")
-	static void SetHomepageURL(UPARAM(ref) FModioEditModParams& In, FString HomepageURL);
+	void SetHomepageURL(UPARAM(ref) FModioEditModParams& In, FString HomepageURL);
 
 	UFUNCTION(BlueprintCallable, Category = "mod.io|Edit Mod Params")
-	static void SetMaturityFlags(UPARAM(ref) FModioEditModParams& In, EModioMaturityFlags MaturityFlags);
+	void SetMaturityFlags(UPARAM(ref) FModioEditModParams& In, EModioMaturityFlags MaturityFlags);
 
 	UFUNCTION(BlueprintCallable, Category = "mod.io|Edit Mod Params")
-	static void SetMetadataBlob(UPARAM(ref) FModioEditModParams& In, FString MetadataBlob);
-
-	UFUNCTION(BlueprintCallable, Category = "mod.io|Edit Mod Params")
-	static void SetLogoPath(UPARAM(ref) FModioEditModParams& In, FString LogoPath);
+	void SetMetadataBlob(UPARAM(ref) FModioEditModParams& In, FString MetadataBlob);
 };

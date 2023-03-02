@@ -23,32 +23,17 @@ namespace Modio
 {
 	struct ModInfo;
 }
-
-/**
-* Enumeration that represent mature content for the mod to create
-**/
 UENUM(BlueprintType, meta = (Bitflags, UseEnumValuesAsMaskValuesInEditor = "true"))
 enum class EModioMaturityFlags : uint8
 {
-	/** No maturity **/
 	None,
-
-	/** Content contains alcohol references **/
 	Alcohol = 1,
-
-	/** Content contains drug references **/
 	Drugs = 2,
-
-	/** Content contains violence references **/
 	Violence = 4,
-
-	/** Content contains sexual references **/
 	Explicit = 8
 };
 
-/** 
-* Full mod profile including current release information, media links, and stats 
-**/
+/** @brief Full mod profile including current release information, media links, and stats */
 USTRUCT(BlueprintType)
 struct MODIO_API FModioModInfo
 {
@@ -100,15 +85,12 @@ struct MODIO_API FModioModInfo
 	 * be labeled as mature.
 	 **/
 	UPROPERTY(BlueprintReadOnly, Category = "Profile")
-	EModioMaturityFlags ProfileMaturityOption {};
+	EModioMaturityFlags ProfileMaturityOption;
 
 	/** @brief Is the mod marked as visible? */
 	UPROPERTY(BlueprintReadOnly, Category = "Profile")
-	bool bVisible {};
+	bool bVisible;
 
-	/**
-	* Stored property to the metadata string
-	**/
 	UPROPERTY(BlueprintReadOnly, Category = "Metadata")
 	FString MetadataBlob;
 
@@ -126,7 +108,7 @@ struct MODIO_API FModioModInfo
 
 	/** @brief Number of images in the mod's media gallery */
 	UPROPERTY(BlueprintReadOnly, Category = "Media")
-	int32 NumGalleryImages {};
+	int32 NumGalleryImages;
 
 	/** @brief List of youtube links provided by the creator of the mod */
 	UPROPERTY(BlueprintReadOnly, Category = "Media")
@@ -139,19 +121,14 @@ struct MODIO_API FModioModInfo
 	/** @brief Stats and rating information for the mod */
 	UPROPERTY(BlueprintReadOnly, Category = "Stats")
 	FModioModStats Stats;
-
+	
 	friend struct FModioModInfo ToUnreal(const struct Modio::ModInfo& In);
 };
 
-/**
-* Strong type struct to store an optional ModInfo parameter
-**/
 USTRUCT(BlueprintType)
 struct MODIO_API FModioOptionalModInfo
 {
 	GENERATED_BODY()
-	/**
-	* Stored property to an optional ModInfo
-	**/
+
 	TOptional<FModioModInfo> Internal;
 };

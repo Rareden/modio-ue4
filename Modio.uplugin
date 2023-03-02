@@ -10,6 +10,7 @@
 	"DocsURL": "",
 	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/content/1ab22ed2961a4cc19b9151bd072df998",
 	"SupportURL": "http://discord.mod.io",
+	"EngineVersion": "5.1.0",
 	"CanContainContent": true,
 	"Installed": true,
 	"Modules": [
@@ -33,16 +34,7 @@
 				"Linux"
 			]
 		},
-		{
-			"Name": "ModioUI",
-			"Type": "Runtime",
-			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
-				"Win64",
-				"Mac",
-				"Linux"
-			]
-		},
+		
 		{
 			"Name": "ModioTests",
 			"Type": "Editor",
@@ -53,36 +45,7 @@
 				"Linux"
 			]
 		},
-		{
-			"Name": "ModioUIEditor",
-			"Type": "Editor",
-			"LoadingPhase": "PostEngineInit",
-			"WhitelistPlatforms": [
-				"Win64",
-				"Mac",
-				"Linux"
-			]
-		},
-		{
-			"Name": "MSDFSupportEditor",
-			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
-				"Win64",
-				"Mac",
-				"Linux"
-			]
-		},
-		{
-			"Name": "MSDFSupport",
-			"Type": "Runtime",
-			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
-				"Win64",
-				"Mac",
-				"Linux"
-			]
-		},
+
 		{
 			"Name": "uring",
 			"Type": "Runtime",
@@ -98,12 +61,6 @@
 			"WhitelistPlatforms": [
 				"Linux"
 			]
-		}
-	],
-	"LocalizationTargets": [
-		{
-			"Name": "ModioUI",
-			"LoadingPolicy": "Always"
 		}
 	]
 }

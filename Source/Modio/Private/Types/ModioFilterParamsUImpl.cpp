@@ -10,6 +10,7 @@
 
 #include "Internal/Convert/FilterParams.h"
 #include "Types/ModioFilterParams.h"
+#include <string>
 
 FModioFilterParams& FModioFilterParams::MatchingIDs(const TArray<FModioModID>& IDs)
 {
@@ -20,6 +21,12 @@ FModioFilterParams& FModioFilterParams::MatchingIDs(const TArray<FModioModID>& I
 FModioFilterParams& FModioFilterParams::ExcludingIDs(const TArray<FModioModID>& IDs)
 {
 	ExcludedIDs = IDs;
+	return *this;
+}
+
+FModioFilterParams& FModioFilterParams::SubmittedByID(const FModioModID ID)
+{
+	SubmittedById = std::string(TCHAR_TO_UTF8(*ID.ToString()));
 	return *this;
 }
 

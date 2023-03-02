@@ -13,10 +13,7 @@
 
 #include "ModioPopupBase.generated.h"
 
- /**
- * Modio UI element that provides basic functionality to show-up a widget 
- * from an action
- **/
+
 UCLASS()
 class UModioPopupBase : public UUserWidget
 {

@@ -78,9 +78,7 @@ void FModioModule::StartupModule()
 	#elif PLATFORM_MAC
 		LibraryPath = FPaths::Combine(*BaseDir,
 	TEXT("Source/ThirdParty/modioLibrary/Mac/Release/libExampleLibrary.dylib")); #endif // PLATFORM_WINDOWS
-
 		ExampleLibraryHandle = !LibraryPath.IsEmpty() ? FPlatformProcess::GetDllHandle(*LibraryPath) : nullptr;
-
 		if (ExampleLibraryHandle)
 		{
 			// Call the test function in the third party library that opens a message box

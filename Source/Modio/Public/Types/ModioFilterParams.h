@@ -12,6 +12,8 @@
 
 #include "Types/ModioCommonTypes.h"
 
+#include <string>
+
 #include "ModioFilterParams.generated.h"
 
 
@@ -62,6 +64,7 @@ struct MODIO_API FModioFilterParams
 	 * @return *this
 	 */
 	FModioFilterParams& ExcludingIDs(const TArray<FModioModID>& IDs);
+	FModioFilterParams& SubmittedByID(const FModioModID ID);
 
 	/**
 	 * @brief Indicates results should be sorted using the specified field and direction
@@ -168,6 +171,7 @@ private:
 	EModioSortDirection Direction = EModioSortDirection::Ascending;
 	EModioSortFieldType SortField = EModioSortFieldType::ID;
 	TArray<FString> SearchKeywords;
+	TOptional<std::string> SubmittedById;
 	TOptional<FDateTime> DateRangeBegin;
 	TOptional<FDateTime> DateRangeEnd;
 	TArray<FString> Tags;

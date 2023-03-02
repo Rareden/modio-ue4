@@ -13,6 +13,7 @@
 #include "Internal/ModioPrivateDefines.h"
 #include "ModioSDK.h"
 #include "Types/ModioFilterParams.h"
+#include <string>
 
 MODIO_BEGIN_CONVERT_SWITCHES
 FORCEINLINE Modio::FilterParams::SortDirection ToModio(EModioSortDirection SortDirection)
@@ -64,7 +65,11 @@ FORCEINLINE Modio::FilterParams ToModio(const FModioFilterParams& In)
 	{
 		Out.IndexedResults(In.Index, In.Count);
 	}
-
+	if(In.SubmittedById)
+	{
+		//std::string SubmittedById ="absc";// = In.SubmittedById.GetValue();
+		Out.SubmittedBy( In.SubmittedById.GetValue());
+	}
 	if (In.DateRangeBegin)
 	{
 		Out.MarkedLiveAfter(ToModioDateTime(In.DateRangeBegin.GetValue()));

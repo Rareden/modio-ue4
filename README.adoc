@@ -1,5 +1,5 @@
 ++++
-<a href="https://mod.io"><img src="https://mod.io/images/branding/modio-logo-bluedark.svg" alt="mod.io" width="360" align="right"/></a>
+<a href="https://mod.io"><img src="https://static.mod.io/v1/images/branding/modio-color-dark.svg" alt="mod.io" width="360" align="right"/></a>
 ++++
 # mod.io Unreal Engine Plugin
 
@@ -35,11 +35,7 @@ In the directory with your .uproject file: `git submodule add https://github.com
 
 ==== In a non-git project, or without submodules
 
-. Grab the latest release zip from the Releases section on this page, and extract the contents to your project's `Plugins/Modio` directory
-
-image:Doc/img/get_latest_release.png[] image:Doc/img/get_latest_release2.png[]
-
-NOTE: The automatically generated zips in on the release page, or the 'Code' dropdown here, will not work! They do not contain our submodule dependencies. 
+. Grab the latest release zip from this page, and extract the contents to your project's `Plugins/Modio` directory
 
 === Enabling the plugin
 

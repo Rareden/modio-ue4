@@ -9,6 +9,8 @@
  */
 
 #include "ModioSubsystem.h"
+
+#include "HandleModDownlod.h"
 #include "Engine/Engine.h"
 #include "Internal/Convert/AuthParams.h"
 #include "Internal/Convert/CreateModFileParams.h"
@@ -31,9 +33,10 @@
 #include "Internal/Convert/ReportParams.h"
 #include "Internal/Convert/Terms.h"
 #include "Internal/Convert/User.h"
-#include "Internal/Convert/UserList.h"
 #include "Internal/ModioConvert.h"
 #include "ModioSettings.h"
+#include "ModioSDK.h"
+#include <string>
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include <map>
 
@@ -71,26 +74,6 @@ bool UModioSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 	return true;
 }
 
-#if WITH_EDITOR
-void UModioSubsystem::CheckShutdownBeforePIEClose(UWorld*)
-{
-	if (bInitializedDuringPIE)
-	{
-		UE_LOG(LogModio, Warning,
-			   TEXT("mod.io plugin initialized during PIE, but not shut down. Please call "
-					"UModioSubsystem::ShutdownAsync, ensuring you call RunPendingHandlers until it completes (invokes "
-					"your callback) before exiting PIE to ensure cleanup occurs"));
-		bool bShutdownComplete = false;
-		ShutdownAsync(FOnErrorOnlyDelegateFast::CreateLambda(
-			[&bShutdownComplete](FModioErrorCode ec) { bShutdownComplete = true; }));
-		while (!bShutdownComplete)
-		{
-			RunPendingHandlers();
-		}
-	}
-}
-#endif
-
 void UModioSubsystem::InitializeAsync(const FModioInitializeOptions& Options, FOnErrorOnlyDelegateFast OnInitComplete)
 {
 #if WITH_EDITOR
@@ -98,15 +81,6 @@ void UModioSubsystem::InitializeAsync(const FModioInitializeOptions& Options, FO
 	{
 		UE_LOG(LogModio, Display, TEXT("Setting log level to %d"), (int32) Settings->LogLevel);
 		SetLogLevel(Settings->LogLevel);
-	}
-
-	if (UWorld* CurrentWorld = GEngine->GetCurrentPlayWorld())
-	{
-		if (CurrentWorld->IsPlayInEditor())
-		{
-			bInitializedDuringPIE = true;
-			FWorldDelegates::OnPreWorldFinishDestroy.AddUObject(this, &UModioSubsystem::CheckShutdownBeforePIEClose);
-		}
 	}
 #endif
 
@@ -142,6 +116,25 @@ void UModioSubsystem::SubscribeToModAsync(FModioModID ModToSubscribeTo, FOnError
 		InvalidateUserSubscriptionCache();
 
 		OnSubscribeComplete.ExecuteIfBound(ToUnreal(ec));
+	});
+}
+
+void UModioSubsystem::AddTagsToModAsync(FModioModID ModId, TArray<FString> Tags,
+	FOnErrorOnlyDelegateFast OnSubscribeComplete)
+{
+
+	Modio::AddTagsToModAsync(ToModio(ModId),ToModio(Tags),[this, OnSubscribeComplete](Modio::ErrorCode ec) {
+
+		OnSubscribeComplete.ExecuteIfBound(ToUnreal(ec));
+	});
+}
+
+void UModioSubsystem::DeleteTagsModAsync(FModioModID ModId, TArray<FString> Tags,
+	FOnErrorOnlyDelegateFast OnComplete)
+{
+	Modio::DeleteTagsModAsync(ToModio(ModId),ToModio(Tags),[this, OnComplete](Modio::ErrorCode ec) {
+
+		OnComplete.ExecuteIfBound(ToUnreal(ec));
 	});
 }
 
@@ -218,10 +211,6 @@ void UModioSubsystem::DisableModManagement()
 void UModioSubsystem::ShutdownAsync(FOnErrorOnlyDelegateFast OnShutdownComplete)
 {
 	Modio::ShutdownAsync([this, OnShutdownComplete](Modio::ErrorCode ec) {
-#if WITH_EDITOR
-		bInitializedDuringPIE = false;
-#endif
-
 		InvalidateUserSubscriptionCache();
 
 		OnShutdownComplete.ExecuteIfBound(ToUnreal(ec));
@@ -239,6 +228,42 @@ void UModioSubsystem::RunPendingHandlers()
 	InvalidateUserSubscriptionCache();
 
 	Modio::RunPendingHandlers();
+}
+
+bool UModioSubsystem::DownloadMod(const FModioModInfo ModId)
+{
+	return HeliosModDownload::StartModDownload(ModId);
+	
+	// auto Func =[this](Modio::ErrorCode Error) {
+	//
+	// 	UE_LOG(LogTemp,Display,TEXT("Download Callback"));
+	// 	FString Msg=FString(UTF8_TO_TCHAR(Error.message().c_str()));
+	// 	
+	// 	UE_LOG(LogTemp,Display,TEXT("%s \n") ,*Msg);
+	// };
+	//
+	// Modio::Detail::InstallOrUpdateModAsync(ToModio(ModId),std::move(Func));
+	// HeliosModDownload::StartModDownload()
+	//
+	// if(Modio::Optional<const Modio::ModProgressInfo> PendingDownload = Modio::Detail::SDKSessionData::GetModProgress())
+	// {
+	// 	FModioModProgressInfo DownloadInfo = ToUnreal(*PendingDownload);
+	// 	
+	// 	UE_LOG(LogTemp,Display,TEXT("CurrentMod Download: ModID=%s,  Size=%i"),*DownloadInfo.ID.ToString(), DownloadInfo.CurrentlyDownloadedBytes)
+	// 	return false;
+	// }
+	// else
+	// {
+	// 	std::weak_ptr<Modio::ModProgressInfo> NewDownload= Modio::Detail::SDKSessionData::StartModDownloadOrUpdate(ToModio(ModId));
+	// 	return !NewDownload.expired();
+	// 	
+	// }
+	// return false;
+}
+
+bool UModioSubsystem::UnInstallMod(const FModioModID ModId)
+{
+	return HeliosModDownload::StartModUninstall(ModId);
 }
 
 void UModioSubsystem::SetLogLevel(EModioLogLevel UnrealLogLevel)
@@ -316,8 +341,8 @@ void UModioSubsystem::GetModMediaAsync(FModioModID ModId, EModioAvatarSize Avata
 								TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("Callback"));
 
 								// Manually calling ToUnreal on the path and assigning to the member of FModioImage
-								// because we already have a std::string -> FString overload of ToUnreal
-								// TODO: @modio-ue4 Potentially refactor ToUnreal(std::string) as a template
+								// because we already have a Modio::filesystem::path -> FString overload of ToUnreal
+								// TODO: @modio-ue4 Potentially refactor ToUnreal(Modio::filesystem::path) as a template
 								// function returning type T so we can be explicit about the expected type
 								if (Path)
 								{
@@ -340,8 +365,8 @@ void UModioSubsystem::GetModMediaAsync(FModioModID ModId, EModioGallerySize Gall
 								TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("Callback"));
 
 								// Manually calling ToUnreal on the path and assigning to the member of FModioImage
-								// because we already have a std::string -> FString overload of ToUnreal
-								// TODO: @modio-ue4 Potentially refactor ToUnreal(std::string) as a template
+								// because we already have a Modio::filesystem::path -> FString overload of ToUnreal
+								// TODO: @modio-ue4 Potentially refactor ToUnreal(Modio::filesystem::path) as a template
 								// function returning type T so we can be explicit about the expected type
 								if (Path)
 								{
@@ -363,8 +388,8 @@ void UModioSubsystem::GetModMediaAsync(FModioModID ModId, EModioLogoSize LogoSiz
 								TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("Callback"));
 
 								// Manually calling ToUnreal on the path and assigning to the member of FModioImage
-								// because we already have a std::string -> FString overload of ToUnreal
-								// TODO: @modio-ue4 Potentially refactor ToUnreal(std::string) as a template
+								// because we already have a Modio::filesystem::path -> FString overload of ToUnreal
+								// TODO: @modio-ue4 Potentially refactor ToUnreal(Modio::filesystem::path) as a template
 								// function returning type T so we can be explicit about the expected type
 								if (Path)
 								{
@@ -443,8 +468,24 @@ void UModioSubsystem::SubmitNewModAsync(FModioModCreationHandle Handle, FModioCr
 							 });
 }
 
+void UModioSubsystem::EditModAsync(FModioModID ModID,FModioCreateModParams Params, FOnErrorOnlyDelegateFast Callback)
+{
+	Modio::EditModAsync(ToModio(ModID),ToModio(Params), [Callback](Modio::ErrorCode ec) {
+								 Callback.ExecuteIfBound(ec);
+							 });
+}
+
+void UModioSubsystem::GetUserMods(FOnListAllModsDelegateFast Callback)
+{
+	Modio::GetUserModsAsync([Callback](Modio::ErrorCode ec, Modio::Optional<Modio::ModInfoList> Result) {
+	   Callback.ExecuteIfBound(ec, ToUnrealOptional<FModioModInfoList>(Result));
+	});
+}
+
+
+
 void UModioSubsystem::RequestEmailAuthCodeAsync(const FModioEmailAddress& EmailAddress,
-												FOnErrorOnlyDelegateFast Callback)
+                                                FOnErrorOnlyDelegateFast Callback)
 {
 	Modio::RequestEmailAuthCodeAsync(ToModio(EmailAddress),
 									 [Callback](Modio::ErrorCode ec) { Callback.ExecuteIfBound(ToUnreal(ec)); });
@@ -521,22 +562,23 @@ void UModioSubsystem::K2_ClearUserDataAsync(FOnErrorOnlyDelegate Callback)
 
 void UModioSubsystem::GetUserMediaAsync(EModioAvatarSize AvatarSize, FOnGetMediaDelegateFast Callback)
 {
-	Modio::GetUserMediaAsync(ToModio(AvatarSize), [Callback](Modio::ErrorCode ec, Modio::Optional<std::string> Media) {
-		// Manually calling ToUnreal on the path and assigning to the member of FModioImage
-		// because we already have a std::string -> FString overload of ToUnreal
-		// TODO: @modio-ue4 Potentially refactor ToUnreal(std::string) as a
-		// template function returning type T so we can be explicit about the expected type
-		if (Media)
-		{
-			FModioImageWrapper Out;
-			Out.ImagePath = ToUnreal(Media.value());
-			Callback.ExecuteIfBound(ec, Out);
-		}
-		else
-		{
-			Callback.ExecuteIfBound(ec, {});
-		}
-	});
+	Modio::GetUserMediaAsync(ToModio(AvatarSize),
+							 [Callback](Modio::ErrorCode ec, Modio::Optional<std::string> Media) {
+								 // Manually calling ToUnreal on the path and assigning to the member of FModioImage
+								 // because we already have a Modio::filesystem::path -> FString overload of ToUnreal
+								 // TODO: @modio-ue4 Potentially refactor ToUnreal(Modio::filesystem::path) as a
+								 // template function returning type T so we can be explicit about the expected type
+								 if (Media)
+								 {
+									 FModioImageWrapper Out;
+									 Out.ImagePath = ToUnreal(Media.value());
+									 Callback.ExecuteIfBound(ec, Out);
+								 }
+								 else
+								 {
+									 Callback.ExecuteIfBound(ec, {});
+								 }
+							 });
 }
 
 void UModioSubsystem::K2_GetUserMediaAvatarAsync(EModioAvatarSize AvatarSize, FOnGetMediaDelegate Callback)
@@ -594,6 +636,12 @@ void UModioSubsystem::SubmitModRatingAsync(FModioModID Mod, EModioRating Rating,
 {
 	Modio::SubmitModRatingAsync(ToModio(Mod), ToModio(Rating),
 								[Callback](FModioErrorCode ec) { Callback.ExecuteIfBound(ec); });
+}
+
+void UModioSubsystem::DeleteModFileAsync(FModioModID Mod, FModioModID FileID, FOnErrorOnlyDelegateFast Callback)
+{
+//	Modio::DeleteModFileAsync(ToModio(Mod), ToModio(FileID),
+							//	[Callback](FModioErrorCode ec) { Callback.ExecuteIfBound(ec); });
 }
 
 void UModioSubsystem::K2_SubmitModRatingAsync(FModioModID Mod, EModioRating Rating, FOnErrorOnlyDelegate Callback)
@@ -693,15 +741,6 @@ void UModioSubsystem::K2_SubmitNewModAsync(FModioModCreationHandle Handle, FModi
 		}));
 }
 
-void UModioSubsystem::K2_ListUserCreatedModsAsync(const FModioFilterParams& Filter,
-												  FOnListUserCreatedModsDelegate Callback)
-{
-	ListUserCreatedModsAsync(Filter, FOnListUserCreatedModsDelegateFast::CreateLambda(
-										 [Callback](FModioErrorCode ec, TOptional<FModioModInfoList> ModList) {
-											 Callback.ExecuteIfBound(ec, ToBP<FModioOptionalModInfoList>(ModList));
-										 }));
-}
-
 void UModioSubsystem::ArchiveModAsync(FModioModID Mod, FOnErrorOnlyDelegateFast Callback)
 {
 	Modio::ArchiveModAsync(ToModio(Mod), [Callback](Modio::ErrorCode ec) { Callback.ExecuteIfBound(ToUnreal(ec)); });
@@ -716,14 +755,6 @@ void UModioSubsystem::K2_ArchiveModAsync(FModioModID Mod, FOnErrorOnlyDelegate C
 void UModioSubsystem::VerifyUserAuthenticationAsync(FOnErrorOnlyDelegateFast Callback)
 {
 	Modio::VerifyUserAuthenticationAsync([Callback](Modio::ErrorCode ec) { Callback.ExecuteIfBound(ToUnreal(ec)); });
-}
-
-void UModioSubsystem::ListUserCreatedModsAsync(FModioFilterParams Filter, FOnListUserCreatedModsDelegateFast Callback)
-{
-	Modio::ListUserCreatedModsAsync(ToModio(Filter),
-									[Callback](FModioErrorCode ec, Modio::Optional<Modio::ModInfoList> Result) {
-										Callback.ExecuteIfBound(ec, ToUnrealOptional<FModioModInfoList>(Result));
-									});
 }
 
 void UModioSubsystem::K2_VerifyUserAuthenticationAsync(FOnErrorOnlyDelegate Callback)
@@ -744,53 +775,6 @@ void UModioSubsystem::K2_SubmitModChangesAsync(FModioModID Mod, FModioEditModPar
 		Mod, Params,
 		FOnGetModInfoDelegateFast::CreateLambda([Callback](FModioErrorCode ec, TOptional<FModioModInfo> MaybeModInfo) {
 			Callback.ExecuteIfBound(ec, FModioOptionalModInfo {MaybeModInfo});
-		}));
-}
-
-void UModioSubsystem::MuteUserAsync(FModioUserID UserID, FOnErrorOnlyDelegateFast Callback)
-{
-	Modio::MuteUserAsync(ToModio(UserID), [Callback](Modio::ErrorCode ec) { Callback.ExecuteIfBound(ToUnreal(ec)); });
-}
-
-void UModioSubsystem::K2_MuteUserAsync(FModioUserID UserID, FOnErrorOnlyDelegate Callback)
-{
-	MuteUserAsync(UserID, FOnErrorOnlyDelegateFast::CreateLambda(
-							  [Callback](FModioErrorCode ec) { Callback.ExecuteIfBound(ec); }));
-}
-
-void UModioSubsystem::UnmuteUserAsync(FModioUserID UserID, FOnErrorOnlyDelegateFast Callback)
-{
-	Modio::UnmuteUserAsync(ToModio(UserID), [Callback](Modio::ErrorCode ec) { Callback.ExecuteIfBound(ToUnreal(ec)); });
-}
-
-void UModioSubsystem::K2_UnmuteUserAsync(FModioUserID UserID, FOnErrorOnlyDelegate Callback)
-{
-	UnmuteUserAsync(UserID, FOnErrorOnlyDelegateFast::CreateLambda(
-								[Callback](FModioErrorCode ec) { Callback.ExecuteIfBound(ec); }));
-}
-
-void UModioSubsystem::GetMutedUsersAsync(FOnMuteUsersDelegateFast Callback)
-{
-	Modio::GetMutedUsersAsync([Callback](Modio::ErrorCode ec, Modio::Optional<Modio::UserList> Dependencies) {
-		if (Dependencies)
-		{
-			FModioUserList Out;
-			Out.InternalList = ToUnreal(Dependencies->GetRawList());
-			Out.PagedResult = FModioPagedResult(Dependencies.value());
-			Callback.ExecuteIfBound(ec, Out);
-		}
-		else
-		{
-			Callback.ExecuteIfBound(ec, {});
-		}
-	});
-}
-
-void UModioSubsystem::K2_GetMutedUsersAsync(FOnMuteUsersDelegate Callback)
-{
-	GetMutedUsersAsync(
-		FOnMuteUsersDelegateFast::CreateLambda([Callback](FModioErrorCode ec, TOptional<FModioUserList> Dependencies) {
-			Callback.ExecuteIfBound(ec, FModioOptionalUserList(MoveTempIfPossible(Dependencies)));
 		}));
 }
 

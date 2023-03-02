@@ -20,9 +20,7 @@ namespace Modio
 	struct User;
 }
 
-/** 
-* Object representing a mod.io user profile information
-**/
+/** @brief Object representing a mod.io user profile **/
 USTRUCT(BlueprintType)
 struct MODIO_API FModioUser
 {
@@ -31,41 +29,27 @@ struct MODIO_API FModioUser
 	FModioUser() = default;
 	FModioUser(const Modio::User& User);
 
-	/** 
-	* User's unique ID
-	**/
+	/** @brief Unique id for the user */
 	UPROPERTY(BlueprintReadOnly,Category="User")
 	FModioUserID UserId;
 
-	/** 
-	* Name chosen by the user 
-	**/
+	/** @brief Username of the user */
 	UPROPERTY(BlueprintReadOnly,Category="User")
 	FString Username;
 
-	/** 
-	* Unix timestamp the last time the  user was online 
-	**/
+	/** @brief Unix timestamp the user was last online */
 	UPROPERTY(BlueprintReadOnly,Category="User")
 	FDateTime DateOnline;
 
-	/** 
-	* URL of the user's mod.io profile 
-	**/
+	/** @brief URL of the user's mod.io profile */
 	UPROPERTY(BlueprintReadOnly,Category="User")
 	FString ProfileUrl;
 };
 
-/**
-* Struct wrapper for an optional ModioUser
-**/
 USTRUCT(BlueprintType)
 struct MODIO_API FModioOptionalUser
 {
 	GENERATED_BODY()
-	
-	/**
-	* Stored optional ModioUser
-	**/
+
 	TOptional<FModioUser> Internal;
 };

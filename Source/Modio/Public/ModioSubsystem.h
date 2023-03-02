@@ -34,7 +34,6 @@
 #include "Types/ModioTerms.h"
 #include "Types/ModioUser.h"
 #include "Types/ModioValidationError.h"
-#include "Types/ModioUserList.h"
 
 #include "ModioSubsystem.generated.h"
 
@@ -48,34 +47,20 @@ DECLARE_DELEGATE_TwoParams(FOnGetModTagOptionsDelegateFast, FModioErrorCode, TOp
 DECLARE_DELEGATE_TwoParams(FOnGetTermsOfUseDelegateFast, FModioErrorCode, TOptional<FModioTerms>);
 DECLARE_DELEGATE_TwoParams(FOnGetModDependenciesDelegateFast, FModioErrorCode, TOptional<FModioModDependencyList>);
 DECLARE_DELEGATE_TwoParams(FOnSubmitNewModDelegateFast, FModioErrorCode, TOptional<FModioModID>);
-DECLARE_DELEGATE_TwoParams(FOnMuteUsersDelegateFast, FModioErrorCode, TOptional<FModioUserList>);
-DECLARE_DELEGATE_TwoParams(FOnListUserCreatedModsDelegateFast, FModioErrorCode, TOptional<FModioModInfoList>);
 
 // Blueprint version of delegates
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnErrorOnlyDelegate, FModioErrorCode, ErrorCode);
-
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnModManagementDelegate, FModioModManagementEvent, Event);
-
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnListAllModsDelegate, FModioErrorCode, ErrorCode, FModioOptionalModInfoList,
 								   Result);
-
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnGetModInfoDelegate, FModioErrorCode, ErrorCode, FModioOptionalModInfo, ModInfo);
-
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnGetMediaDelegate, FModioErrorCode, ErrorCode, FModioOptionalImage, Path);
-
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnGetModTagOptionsDelegate, FModioErrorCode, ErrorCode, FModioOptionalModTagOptions,
 								   ModTagOptions);
-
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnGetTermsOfUseDelegate, FModioErrorCode, ErrorCode, FModioOptionalTerms, Terms);
-
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnGetModDependenciesDelegate, FModioErrorCode, ErrorCode,
 								   FModioOptionalModDependencyList, Dependencies);
-
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnSubmitNewModDelegate, FModioErrorCode, ErrorCode, FModioOptionalModID, NewModID);
-DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnMuteUsersDelegate, FModioErrorCode, ErrorCode, FModioOptionalUserList, NewUserList);
-
-DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnListUserCreatedModsDelegate, FModioErrorCode, ErrorCode,
-								   FModioOptionalModInfoList, Result);
 
 /**
  * @brief Thin wrapper around the mod.io SDK. This mostly wraps all the functions available in modio/ModioSDK.h that's
@@ -86,13 +71,6 @@ UCLASS(MinimalAPI)
 class UModioSubsystem : public UEngineSubsystem
 {
 	GENERATED_BODY()
-
-#if WITH_EDITOR
-	/// @brief Internal method used for emitting a warning during PIE if the Plugin was initialized during that PIE
-	/// session
-	void CheckShutdownBeforePIEClose(UWorld*);
-	bool bInitializedDuringPIE = false;
-#endif
 public:
 	/** Begin USubsystem interface */
 	virtual void Initialize(FSubsystemCollectionBase& Collection);
@@ -131,7 +109,11 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "mod.io")
 	MODIO_API void RunPendingHandlers();
-
+	UFUNCTION(BlueprintCallable, Category = "mod.io")
+	MODIO_API bool DownloadMod(const FModioModInfo ModId);
+	MODIO_API bool DownloadMod(const FModioModID ModId);
+	UFUNCTION(BlueprintCallable, Category = "mod.io")
+	MODIO_API bool UnInstallMod(const FModioModID ModId);
 	/**
 	 * @brief Cancels any running internal operations, frees SDK resources, and invokes any pending callbacks with
 	 * Modio::GenericError::OperationCanceled . This function will NOT block while the deinitialization occurs.
@@ -165,7 +147,10 @@ public:
 	 * @error UserDataError::InvalidUser|No authenticated user
 	 **/
 	MODIO_API void SubscribeToModAsync(FModioModID ModToSubscribeTo, FOnErrorOnlyDelegateFast OnSubscribeComplete);
-
+	
+	MODIO_API void AddTagsToModAsync(FModioModID ModId,TArray<FString> Tags, FOnErrorOnlyDelegateFast OnSubscribeComplete);
+	MODIO_API void DeleteTagsModAsync(FModioModID ModId,TArray<FString> Tags, FOnErrorOnlyDelegateFast OnComplete);
+	
 	/**
 	 * @brief Sends a request to the Mod.io server to remove the specified mod from the user's list of subscriptions.
 	 * If no other local users are subscribed to the specified mod this function will also mark the mod for
@@ -401,8 +386,11 @@ public:
 	 */
 	MODIO_API void SubmitNewModAsync(FModioModCreationHandle Handle, FModioCreateModParams Params,
 									 FOnSubmitNewModDelegateFast Callback);
+	MODIO_API void EditModAsync(FModioModID ModID,FModioCreateModParams Params,
+									 FOnErrorOnlyDelegateFast Callback);
 
-	/**
+	MODIO_API void GetUserMods(FOnListAllModsDelegateFast Callback);
+	/** 
 	 * @brief Queues the upload of a new mod file release for the specified mod, using the submitted parameters. The
 	 * upload's progress can be tracked in the same way as downloads; when completed, a Mod Management Event will be
 	 * triggered with the result code for the upload.
@@ -445,7 +433,8 @@ public:
 	 * @requires no-authenticated-user
 	 * @errorcategory NetworkError|Couldn't connect to mod.io servers
 	 * @error GenericError::SDKNotInitialized|SDK not initialized
-	 * @error Authenticated user already signed-in. Call ClearUserDataAsync to
+	 * @error
+|Authenticated user already signed-in. Call ClearUserDataAsync to
 	 * de-authenticate the old user, then Shutdown() and reinitialize the SDK first.
 	 **/
 	MODIO_API void RequestEmailAuthCodeAsync(const FModioEmailAddress& EmailAddress, FOnErrorOnlyDelegateFast Callback);
@@ -544,6 +533,7 @@ public:
 	 */
 	MODIO_API void SubmitModRatingAsync(FModioModID Mod, EModioRating Rating, FOnErrorOnlyDelegateFast Callback);
 
+	MODIO_API void DeleteModFileAsync(FModioModID Mod, FModioModID FileID, FOnErrorOnlyDelegateFast Callback);
 	/**
 	 * @brief Sends a content report to mod.io. When using this function, please inform your users that if they provide
 	 * their contact name or details in the Report parameter, that those may be shared with the person responsible for
@@ -582,7 +572,6 @@ public:
 	 * room for a mod that the user wants to install, and as such will return an error if the current user is
 	 * subscribed to the mod. To remove a mod the current user is subscribed to, use
 	 * xref:UnsubscribeFromModAsync[].
-	 * @param ModToRemove The mod ID to force uninstall.
 	 * @param Callback Callback invoked when the uninstallation is successful, or if it failed because the current user
 	 * remains subscribed.
 	 * @error GenericError::SDKNotInitialized|SDK not initialized
@@ -590,54 +579,6 @@ public:
 	 * @error ModManagementError::AlreadySubscribed|User is still subscribed to the specified mod
 	 */
 	MODIO_API void ForceUninstallModAsync(FModioModID ModToRemove, FOnErrorOnlyDelegateFast Callback);
-
-	/**
-	 * @docpublic
-	 * @brief Mute a user. This will prevent mod.io from returning mods authored by the muted user.
-	 * when performing searches.
-	 * @requires authenticated-user
-	 * @requires initialized-sdk
-	 * @param UserID ID of the User to mute
-	 * @error GenericError::SDKNotInitialized|SDK not initialized
-	 * @error UserDataError::InvalidUser|No authenticated user
-	 */
-	MODIO_API void MuteUserAsync(FModioUserID UserID, FOnErrorOnlyDelegateFast Callback);
-
-	/*
-	 * @docpublic
-	 * @brief Unmute a user. This will allow mod.io to mods authored by the previously muted user.
-	 * when performing searches.
-	 * @requires authenticated-user
-	 * @requires initialized-sdk
-	 * @param UserID ID of the User to unmute
-	 * @error GenericError::SDKNotInitialized|SDK not initialized
-	 * @error UserDataError::InvalidUser|No authenticated user
-	 */
-	MODIO_API void UnmuteUserAsync(FModioUserID UserID, FOnErrorOnlyDelegateFast Callback);
-
-	/*
-	 * @docpublic
-	 * @brief List all the users that have been muted by the current user.
-	 * @requires authenticated-user
-	 * @requires initialized-sdk
-	 * @error GenericError::SDKNotInitialized|SDK not initialized
-	 * @error UserDataError::InvalidUser|No authenticated user
-	 */
-	MODIO_API void GetMutedUsersAsync(FOnMuteUsersDelegateFast Callback);
-	
-	/**
-	 * @brief Provides a list of mods that the user has submitted, or is a team member for, for the current game,
-	 * applying the parameters specified in the filter.
-	 * @param Filter Filter to apply to listing the user's created mods.
-	 * @param Callback Callback invoked when the call succeeds, or when an error occurs.
-	 * @requires authenticated-user
-	 * @requires initialized-sdk
-	 * @requires no-rate-limiting
-	 * @errorcategory NetworkError|Couldn't connect to mod.io servers
-	 * @error GenericError::SDKNotInitialized|SDK not initialized
-	 * @error HttpError::RateLimited|Too many frequent calls to the API. Wait some time and try again.
-	 */
-	MODIO_API void ListUserCreatedModsAsync(FModioFilterParams Filter, FOnListUserCreatedModsDelegateFast Callback);
 
 private:
 	TUniquePtr<struct FModioImageCache> ImageCache;
@@ -768,6 +709,11 @@ public:
 	UFUNCTION(BlueprintCallable, DisplayName = "GetModInfoAsync", Category = "mod.io|Mods")
 	MODIO_API void K2_GetModInfoAsync(FModioModID ModId, FOnGetModInfoDelegate Callback);
 
+	UFUNCTION(BlueprintCallable, BlueprintPure,DisplayName = "ModIdFromStiring", Category = "mod.io|Mods")
+	MODIO_API FModioModID K2_ModIdFromString(const FString InID)
+	{
+		return FModioModID(FCString::Atoi64(*InID));
+	}
 	/**
 	 * @brief Downloads the logo for the specified mod. Will use existing file if it is already present on disk
 	 * @param ModId Mod ID for use in logo retrieval
@@ -1038,7 +984,7 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, DisplayName = "SubmitModChangesAsync", Category = "mod.io|Mods|Editing")
 	MODIO_API void K2_SubmitModChangesAsync(FModioModID Mod, FModioEditModParams Params,
-											FOnGetModInfoDelegate Callback);
+										 FOnGetModInfoDelegate Callback);
 
 	/**
 	 * @brief Sends a content report to mod.io. When using this function, please inform your users that if they provide
@@ -1055,74 +1001,21 @@ public:
 	MODIO_API void K2_ReportContentAsync(FModioReportParams Report, FOnErrorOnlyDelegate Callback);
 
 	/*
-	 * @brief Archives a mod. This mod will no longer be able to be viewed or retrieved via the SDK, but it will still
-	 * exist should you choose to restore it at a later date. Archiving is restricted to team managers and administrators
-	 * only. Note that restoration and permanent deletion of a mod is possible only via web interface.
-	 * @param Mod The mod to be archived.
-	 * @requires authenticated-user
-	 * @requires initialized-sdk
-	 * @requires no-rate-limiting
-	 * @error ApiError::InsufficientPermission|The authenticated user does not have permission to archive this mod.This
-	 * action is restricted to team managers and administrators only.
-	 * @errorcategory NetworkError|Couldn't connect to mod.io servers
-	 * @error GenericError::SDKNotInitialized|SDK not initialized
-	 * @errorcategory EntityNotFoundError|Specified mod does not exist or was deleted
-	 */
+	@brief Archives a mod. This mod will no longer be able to be viewed or retrieved via the SDK, but it will still
+	exist should you choose to restore it at a later date. Archiving is restricted to team managers and administrators
+	only. Note that restoration and permanent deletion of a mod is possible only via web interface.
+	@param Mod The mod to be archived.
+	@requires authenticated-user
+	@requires initialized-sdk
+	@requires no-rate-limiting
+	@error ApiError::InsufficientPermission|The authenticated user does not have permission to archive this mod.This
+	action is restricted to team managers and administrators only.
+	@errorcategory NetworkError|Couldn't connect to mod.io servers
+	@error GenericError::SDKNotInitialized|SDK not initialized
+	@errorcategory EntityNotFoundError|Specified mod does not exist or was deleted
+	*/
 	UFUNCTION(BlueprintCallable, DisplayName = "ArchiveModAsync", Category = "mod.io|Mods")
 	MODIO_API void K2_ArchiveModAsync(FModioModID Mod, FOnErrorOnlyDelegate Callback);
-
-	/**
-	 * @docpublic
-	 * @brief Mute a user. This will prevent mod.io from returning mods authored by the muted user.
-	 * when performing searches.
-	 * @requires authenticated-user
-	 * @requires initialized-sdk
-	 * @param UserID ID of the User to mute
-	 * @error GenericError::SDKNotInitialized|SDK not initialized
-	 * @error UserDataError::InvalidUser|No authenticated user
-	 */
-	UFUNCTION(BlueprintCallable, DisplayName = "MuteUserAsync", Category = "mod.io|User")
-	MODIO_API void K2_MuteUserAsync(FModioUserID UserID, FOnErrorOnlyDelegate Callback);
-
-	/**
-	 * @docpublic
-	 * @brief Unmute a user. This will allow mod.io to mods authored by the previously muted user.
-	 * when performing searches.
-	 * @requires authenticated-user
-	 * @requires initialized-sdk
-	 * @param UserID ID of the User to unmute
-	 * @error GenericError::SDKNotInitialized|SDK not initialized
-	 * @error UserDataError::InvalidUser|No authenticated user
-	 */
-	UFUNCTION(BlueprintCallable, DisplayName = "UnmuteUserAsync", Category = "mod.io|User")
-	MODIO_API void K2_UnmuteUserAsync(FModioUserID UserID, FOnErrorOnlyDelegate Callback);
-
-	/**
-	 * @docpublic
-	 * @brief List all the users that have been muted by the current user.
-	 * @requires authenticated-user
-	 * @requires initialized-sdk
-	 * @error GenericError::SDKNotInitialized|SDK not initialized
-	 * @error UserDataError::InvalidUser|No authenticated user
-	 */
-	UFUNCTION(BlueprintCallable, DisplayName = "GetMutedUsersAsync", Category = "mod.io|User")
-	MODIO_API void K2_GetMutedUsersAsync(FOnMuteUsersDelegate Callback);
-
-	/**
-	 * @brief Provides a list of mods that the user has submitted, or is a team member for, for the current game,
-	 * applying the parameters specified in the filter.
-	 * @param Filter Filter to apply to listing the user's created mods.
-	 * @param Callback Callback invoked when the call succeeds, or when an error occurs.
-	 * @requires authenticated-user
-	 * @requires initialized-sdk
-	 * @requires no-rate-limiting
-	 * @errorcategory NetworkError|Couldn't connect to mod.io servers
-	 * @error GenericError::SDKNotInitialized|SDK not initialized
-	 * @error HttpError::RateLimited|Too many frequent calls to the API. Wait some time and try again.
-	 */
-	UFUNCTION(BlueprintCallable, DisplayName = "ListUserCreatedModsAsync", Category = "mod.io|Mods")
-	MODIO_API void K2_ListUserCreatedModsAsync(const FModioFilterParams& Filter,
-											   FOnListUserCreatedModsDelegate Callback);
 
 #pragma endregion
 };

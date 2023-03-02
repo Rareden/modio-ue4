@@ -19,9 +19,6 @@ namespace Modio
 
 struct FModioModCreationHandle;
 
-/**
-* Struct type to store the handle when a new mod is created
-**/
 USTRUCT(BlueprintType)
 struct MODIO_API FModioModCreationHandle
 {

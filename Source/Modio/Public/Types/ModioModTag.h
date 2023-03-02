@@ -14,17 +14,12 @@
 
 #include "ModioModTag.generated.h"
 
-/**
-* Strong type struct to wrap a Mod tag
-**/
+
 USTRUCT(BlueprintType)
 struct MODIO_API FModioModTag
 {
 	GENERATED_BODY()
 
-	/**
-	* A string that represents a mod tag
-	**/
 	UPROPERTY(BlueprintReadOnly, Category = "ModTag")
 	FString Tag;
 };
