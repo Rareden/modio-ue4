@@ -20,17 +20,25 @@ FORCEINLINE EModioModManagementEventType ToUnreal(Modio::ModManagementEvent::Eve
 {
 	switch (Event)
 	{
+		case Modio::ModManagementEvent::EventType::BeginInstall:
+			return EModioModManagementEventType::BeginInstall;
 		case Modio::ModManagementEvent::EventType::Installed:
 			return EModioModManagementEventType::Installed;
+		case Modio::ModManagementEvent::EventType::BeginUninstall:
+			return EModioModManagementEventType::BeginUninstall;
 		case Modio::ModManagementEvent::EventType::Uninstalled:
 			return EModioModManagementEventType::Uninstalled;
+		case Modio::ModManagementEvent::EventType::BeginUpdate:
+			return EModioModManagementEventType::BeginUpdate;
 		case Modio::ModManagementEvent::EventType::Updated:
 			return EModioModManagementEventType::Updated;
+		case Modio::ModManagementEvent::EventType::BeginUpload:
+			return EModioModManagementEventType::BeginUpload;
 		case Modio::ModManagementEvent::EventType::Uploaded:
-		return	EModioModManagementEventType::Uploaded;
+			return EModioModManagementEventType::Uploaded;
 	}
 
-	checkf(false, TEXT("Missed a case in ToModio(EModioEnvironment Environment)"));
+	checkf(false, TEXT("Missed a case in ToUnreal(Modio::ModManagementEvent::EventType Event)"));
 	return EModioModManagementEventType::Installed;
 }
 MODIO_END_CONVERT_SWITCHES

@@ -384,7 +384,7 @@ void UModioSubsystem::GetModMediaAsync(FModioModID ModId, EModioGallerySize Gall
 void UModioSubsystem::GetModMediaAsync(FModioModID ModId, EModioLogoSize LogoSize, FOnGetMediaDelegateFast Callback)
 {
 	Modio::GetModMediaAsync(ToModio(ModId), ToModio(LogoSize),
-							[Callback](Modio::ErrorCode ec, Modio::Optional<std::string> Path) {
+							[Callback](Modio::ErrorCode ec, Modio::Optional<std::string> Path, Modio::Optional<std::string> Url) {
 								TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("Callback"));
 
 								// Manually calling ToUnreal on the path and assigning to the member of FModioImage
@@ -395,6 +395,8 @@ void UModioSubsystem::GetModMediaAsync(FModioModID ModId, EModioLogoSize LogoSiz
 								{
 									FModioImageWrapper Out;
 									Out.ImagePath = ToUnreal(Path.value());
+									if(Url.has_value())
+										Out.ImageURL = ToUnreal(Url.value());
 									Callback.ExecuteIfBound(ec, Out);
 								}
 								else

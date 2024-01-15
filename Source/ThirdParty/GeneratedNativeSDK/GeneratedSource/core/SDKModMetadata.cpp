@@ -96,6 +96,19 @@ namespace Modio
 				Callback, Modio::Detail::Services::GetGlobalContext().get_executor());
 		}
 	}
+	void GetModMediaAsync(
+		Modio::ModID ModId, Modio::LogoSize LogoSize,
+		std::function<void(Modio::ErrorCode code, Modio::Optional<std::string> filepath, Modio::Optional<std::string> url)> Callback)
+	{
+		if (Modio::Detail::RequireSDKIsInitialized(Callback) && Modio::Detail::RequireNotRateLimited(Callback))
+		{
+			return asio::async_compose<std::function<void(Modio::ErrorCode, Modio::Optional<std::string>, Modio::Optional<std::string>)>,
+				void(Modio::ErrorCode, Modio::Optional<std::string>, Modio::Optional<std::string>)>
+				(Modio::Detail::GetModMediaLogoUrlOp(Modio::Detail::SDKSessionData::CurrentGameID(),
+												 Modio::Detail::SDKSessionData::CurrentAPIKey(), ModId, LogoSize),
+				Callback, Modio::Detail::Services::GetGlobalContext().get_executor());
+		}
+	}
 
 	void GetModMediaAsync(Modio::ModID ModId, Modio::AvatarSize AvatarSize,
 						  std::function<void(Modio::ErrorCode, Modio::Optional<std::string>)> Callback)

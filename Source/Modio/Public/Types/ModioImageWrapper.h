@@ -36,6 +36,9 @@ struct MODIO_API FModioImageWrapper
 	/** The path on disc to the image */
 	UPROPERTY(BlueprintReadOnly, Category = "Media")
 	FString ImagePath;
+	/** The path on disc to the image */
+	UPROPERTY(BlueprintReadOnly, Category = "Media")
+	FString ImageURL;
 private:
 	// Data required to create the texture
 	struct FTextureCreationData
